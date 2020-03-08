@@ -1,0 +1,15 @@
+@import dev.gustavoatt.spotifyql.api.Track
+
+@(redirectUrl: String, currentTrack: Track)
+@layouts.html.default("Spotify Query Language", "Browse your Spotify Data") {
+    <div class="row">
+        <div class="card" style="width: 18rem;">
+            <img src=@currentTrack.album.images.get(0).url class="card-img-top"">
+            <div class="card-body">
+                <h5 class="card-title">@currentTrack.artists.get(0).name - @currentTrack.name</h5>
+                <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p>
+                <a href="#" class="btn btn-primary">Go somewhere</a>
+            </div>
+        </div>
+    </div>
+}
