@@ -4,7 +4,7 @@
 
 ```sh
 $ cd spotify-ql
-$ sbt
+$ SPOTIFY_CLIENT_ID=$YOUR_CLIENT_ID SPOTIFY_SECRET_ID=$YOUR_SECRET_ID sbt
 > jetty:start
 > browse
 ```
