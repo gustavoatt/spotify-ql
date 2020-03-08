@@ -31,6 +31,30 @@ class SpotifyAPI(private val clientId: String, private val clientSecret: String)
                                           refreshToken: String,
                                           scope: String)
 
+  private def getApiResource(userInfo: UserInfo,
+                             path: String,
+                             queryParameters: Map[String, String]): String = {
+    val url = new HttpUrl.Builder()
+      .scheme("https")
+      .host(API_DOMAIN)
+      .addPathSegments(path)
+    queryParameters.foreach(keyVal => url.addQueryParameter(keyVal._1, keyVal._2))
+
+    val request = new Request.Builder()
+      .url(url.build())
+      .header("Authorization", s"${userInfo.tokenType} ${userInfo.accessToken}")
+      .get()
+      .build()
+
+    var response: okhttp3.Response = null
+    try {
+      response = client.newCall(request).execute()
+      response.body().string()
+    } finally {
+      Option(response).foreach(_.close())
+    }
+  }
+
   /**
     * Gets authorize URL to be sent to Spotify for getting permissions. Users should be redirected here as the first step
     * of the Oauth 2.0 flow.
@@ -130,143 +154,41 @@ class SpotifyAPI(private val clientId: String, private val clientSecret: String)
   }
 
   def getUserProfile(userInfo: UserInfo): String = {
-    val url = new HttpUrl.Builder()
-      .scheme("https")
-      .host(API_DOMAIN)
-      .addPathSegment("v1")
-      .addPathSegment("me")
-      .build()
-
-    val request = new Request.Builder()
-      .url(url)
-      .header("Authorization", s"${userInfo.tokenType} ${userInfo.accessToken}")
-      .build()
-
-    var response: okhttp3.Response = null
-    try {
-      response = client.newCall(request).execute()
-      response.body().string()
-    } finally {
-      if (response != null) {
-        response.close()
-      }
-    }
+    getApiResource(userInfo = userInfo, path = "v1/me", queryParameters = Map())
   }
 
   def getCurrentlyPlayingTrack(userInfo: UserInfo): CurrentlyPlaying = {
-    val url = new HttpUrl.Builder()
-      .scheme("https")
-      .host(API_DOMAIN)
-      .addPathSegments("v1/me/player/currently-playing")
-      .build()
-
-    val request = new Request.Builder()
-      .url(url)
-      .header("Authorization", s"${userInfo.tokenType} ${userInfo.accessToken}")
-      .build()
-
-    var response: Option[okhttp3.Response] = None
-    try {
-      response = Some(client.newCall(request).execute())
-      gson.fromJson(response.get.body().string(), classOf[CurrentlyPlaying])
-    } finally {
-      response.foreach(_.close())
-    }
+    gson.fromJson(getApiResource(userInfo = userInfo,
+                                 path = "v1/me/player/currently-playing",
+                                 queryParameters = Map()),
+                  classOf[CurrentlyPlaying])
   }
 
   def getUserTracks(userInfo: UserInfo): Paging[SavedTrack] = {
-    val url = new HttpUrl.Builder()
-      .scheme("https")
-      .host(API_DOMAIN)
-      .addPathSegment("v1")
-      .addPathSegment("me")
-      .addPathSegment("tracks")
-      .build()
-
-    val request = new Request.Builder()
-      .url(url)
-      .header("Authorization", s"${userInfo.tokenType} ${userInfo.accessToken}")
-      .build()
-
-    var response: okhttp3.Response = null
-    try {
-      response = client.newCall(request).execute()
-      gson.fromJson(
-        response.body().string(),
-        TypeToken.getParameterized(classOf[Paging[SavedTrack]], classOf[SavedTrack]).getType)
-    } finally {
-      if (response != null) {
-        response.close()
-      }
-    }
+    gson.fromJson(
+      getApiResource(userInfo = userInfo, path = "v1/me/tracks", queryParameters = Map()),
+      TypeToken.getParameterized(classOf[Paging[SavedTrack]], classOf[SavedTrack]).getType
+    )
   }
 
   def getRecommendedTracks(userInfo: UserInfo, tracks: Seq[String]): RecomendationResponse = {
-    val url = new HttpUrl.Builder()
-      .scheme("https")
-      .host(API_DOMAIN)
-      .addPathSegments("v1/recommendations")
-      .addQueryParameter("seed_tracks", tracks.mkString(","))
-      .build()
-
-    val request = new Request.Builder()
-      .url(url)
-      .header("Authorization", s"${userInfo.tokenType} ${userInfo.accessToken}")
-      .get()
-      .build()
-
-    var response: Option[okhttp3.Response] = None
-    try {
-      response = Some(client.newCall(request).execute())
-      gson.fromJson(response.get.body().string(), classOf[RecomendationResponse])
-    } finally {
-      response.foreach(_.close())
-    }
+    gson.fromJson(getApiResource(userInfo = userInfo,
+                                 path = "v1/recommendations",
+                                 queryParameters = Map("seed_tracks" -> tracks.mkString(","))),
+                  classOf[RecomendationResponse])
   }
 
   def getAlbums(userInfo: UserInfo, albumIds: Seq[String]): Albums = {
-    val url = new HttpUrl.Builder()
-      .scheme("https")
-      .host(API_DOMAIN)
-      .addPathSegments("v1/albums")
-      .addQueryParameter("ids", albumIds.mkString(","))
-      .build()
-
-    val request = new Request.Builder()
-      .url(url)
-      .header("Authorization", s"${userInfo.tokenType} ${userInfo.accessToken}")
-      .get()
-      .build()
-
-    var response: okhttp3.Response = null
-    try {
-      response = client.newCall(request).execute()
-      gson.fromJson(response.body().string(), classOf[Albums])
-    } finally {
-      Option(response).foreach(_.close())
-    }
+    gson.fromJson(getApiResource(userInfo = userInfo,
+                                 path = "v1/albums",
+                                 queryParameters = Map("ids" -> albumIds.mkString(","))),
+                  classOf[Albums])
   }
 
   def getArtists(userInfo: UserInfo, artistIds: Seq[String]): Artists = {
-    val url = new HttpUrl.Builder()
-      .scheme("https")
-      .host(API_DOMAIN)
-      .addPathSegments("v1/artists")
-      .addQueryParameter("ids", artistIds.mkString(","))
-      .build()
-
-    val request = new Request.Builder()
-      .url(url)
-      .header("Authorization", s"${userInfo.tokenType} ${userInfo.accessToken}")
-      .get()
-      .build()
-
-    var response: okhttp3.Response = null
-    try {
-      response = client.newCall(request).execute()
-      gson.fromJson(response.body().string(), classOf[Artists])
-    } finally {
-      Option(response).foreach(_.close())
-    }
+    gson.fromJson(getApiResource(userInfo = userInfo,
+                                 path = "v1/artists",
+                                 queryParameters = Map("ids" -> artistIds.mkString(","))),
+                  classOf[Artists])
   }
 }
