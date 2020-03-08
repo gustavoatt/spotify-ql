@@ -8,6 +8,8 @@ import com.google.gson.reflect.TypeToken
 import com.google.gson.{FieldNamingPolicy, Gson, GsonBuilder}
 import javax.servlet.http.HttpServletRequest
 import okhttp3.{FormBody, HttpUrl, OkHttpClient, Request}
+import scala.collection.JavaConverters._
+import scala.reflect._
 
 /**
   * Handles connections to the Spotify API for different methods.
@@ -103,6 +105,30 @@ class SpotifyAPI(private val clientId: String, private val clientSecret: String)
     }
   }
 
+  def expandPage[Item: ClassTag](userInfo: UserInfo, paging: Paging[Item]): Seq[Item] = {
+    paging match {
+      case Paging(_, items, _, null, _, _, _) => items.asScala
+      case Paging(_, items, _, next: String, _, _, _) if next != null =>
+        val request = new Request.Builder()
+          .url(next)
+          .header("Authorization", s"${userInfo.tokenType} ${userInfo.accessToken}")
+          .build()
+
+        var response: okhttp3.Response = null
+        try {
+          response = client.newCall(request).execute()
+          items.asScala ++ expandPage(
+            userInfo,
+            gson.fromJson(response.body().string(),
+                          TypeToken
+                            .getParameterized(classOf[Paging[Item]], classTag[Item].runtimeClass)
+                            .getType))
+        } finally {
+          Option(response).map(_.close)
+        }
+    }
+  }
+
   def getUserProfile(userInfo: UserInfo): String = {
     val url = new HttpUrl.Builder()
       .scheme("https")
@@ -195,6 +221,52 @@ class SpotifyAPI(private val clientId: String, private val clientSecret: String)
       gson.fromJson(response.get.body().string(), classOf[RecomendationResponse])
     } finally {
       response.foreach(_.close())
+    }
+  }
+
+  def getAlbums(userInfo: UserInfo, albumIds: Seq[String]): Albums = {
+    val url = new HttpUrl.Builder()
+      .scheme("https")
+      .host(API_DOMAIN)
+      .addPathSegments("v1/albums")
+      .addQueryParameter("ids", albumIds.mkString(","))
+      .build()
+
+    val request = new Request.Builder()
+      .url(url)
+      .header("Authorization", s"${userInfo.tokenType} ${userInfo.accessToken}")
+      .get()
+      .build()
+
+    var response: okhttp3.Response = null
+    try {
+      response = client.newCall(request).execute()
+      gson.fromJson(response.body().string(), classOf[Albums])
+    } finally {
+      Option(response).foreach(_.close())
+    }
+  }
+
+  def getArtists(userInfo: UserInfo, artistIds: Seq[String]): Artists = {
+    val url = new HttpUrl.Builder()
+      .scheme("https")
+      .host(API_DOMAIN)
+      .addPathSegments("v1/artists")
+      .addQueryParameter("ids", artistIds.mkString(","))
+      .build()
+
+    val request = new Request.Builder()
+      .url(url)
+      .header("Authorization", s"${userInfo.tokenType} ${userInfo.accessToken}")
+      .get()
+      .build()
+
+    var response: okhttp3.Response = null
+    try {
+      response = client.newCall(request).execute()
+      gson.fromJson(response.body().string(), classOf[Artists])
+    } finally {
+      Option(response).foreach(_.close())
     }
   }
 }

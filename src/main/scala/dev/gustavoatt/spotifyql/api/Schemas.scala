@@ -28,14 +28,18 @@ case class Track(name: String,
                  isPlayable: Boolean,
                  uri: String)
 
-case class Album(albumGroup: String,
+case class Albums(albums: util.List[Album])
+case class Album(id: String,
+                 albumGroup: String,
                  albumType: String,
                  artists: util.List[Artist],
-                 images: util.List[Image])
+                 images: util.List[Image],
+                 genres: util.List[String])
 
 case class Image(height: Int, width: Int, url: String)
 
-case class Artist(href: String, id: String, name: String, uri: String)
+case class Artists(artists: util.List[Artist])
+case class Artist(href: String, id: String, name: String, uri: String, genres: util.List[String])
 
 case class CurrentlyPlaying(context: Context,
                             timestamp: Long,
